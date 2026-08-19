@@ -1,0 +1,37 @@
+name: no_more_breakups
+description: A supportive community app to navigate and prevent breakups through stories and relationship advice.
+
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Backend & Auth
+  supabase_flutter: ^2.5.0
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # UI & Media
+  cached_network_image: ^3.3.1
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
+  image_picker: ^1.1.0
+  flutter_image_compress: ^2.3.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
