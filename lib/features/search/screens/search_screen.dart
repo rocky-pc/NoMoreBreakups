@@ -23,7 +23,7 @@ class SearchScreen extends StatelessWidget {
             ),
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: const Center(

@@ -5,91 +5,205 @@ import 'package:no_more_breakups/features/notes/models/note_model.dart';
 class NotesCarousel extends StatelessWidget {
   final List<NoteModel> notes;
   final VoidCallback onAddNote;
+  final Function(NoteModel)? onNoteTap;
 
   const NotesCarousel({
     super.key,
     required this.notes,
     required this.onAddNote,
+    this.onNoteTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 105,
+      height: 118,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         itemCount: notes.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           if (index == 0) {
-            return _buildAddNoteButton();
+            return _buildAddNoteButton(context);
           }
           final note = notes[index - 1];
-          return _buildNoteItem(note);
+          return _buildNoteItem(context, note);
         },
       ),
     );
   }
 
-  Widget _buildAddNoteButton() {
+  // ────────────────────────────────────────────────
+  // ADD NOTE BUTTON
+  // ────────────────────────────────────────────────
+  Widget _buildAddNoteButton(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onAddNote,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: Colors.grey.shade300,
-                child: const Icon(Icons.add, color: Colors.black87),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withOpacity(0.25)
+                    : Colors.grey.shade400,
+                width: 1.8,
               ),
-            ],
+            ),
+            child: Center(
+              child: Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.08)
+                      : Colors.grey.shade100,
+                ),
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 28,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 4),
-          const Text('Your Note', style: TextStyle(fontSize: 11)),
+          const SizedBox(height: 7),
+          Text(
+            'Your Note',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildNoteItem(NoteModel note) {
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundImage: note.avatarUrl != null
-                  ? CachedNetworkImageProvider(note.avatarUrl!)
-                  : null,
-              child: note.avatarUrl == null ? const Icon(Icons.person) : null,
-            ),
-            Positioned(
-              top: -10,
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 80),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+  // ────────────────────────────────────────────────
+  // NOTE ITEM
+  // ────────────────────────────────────────────────
+  Widget _buildNoteItem(BuildContext context, NoteModel note) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: () => onNoteTap?.call(note),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Gradient ring
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFF58529),
+                      Color(0xFFDD2A7B),
+                      Color(0xFF8134AF),
+                      Color(0xFF515BD4),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
-                child: Text(
-                  note.content,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                child: Padding(
+                  padding: const EdgeInsets.all(2.8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: theme.colorScheme.surface,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2.2),
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                        backgroundImage: note.avatarUrl != null
+                            ? CachedNetworkImageProvider(note.avatarUrl!)
+                            : null,
+                        child: note.avatarUrl == null
+                            ? Icon(
+                          Icons.person_rounded,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        )
+                            : null,
+                      ),
+                    ),
+                  ),
                 ),
               ),
+
+              // Note bubble (only this small floating bubble, no big rectangle)
+              Positioned(
+                top: -6,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 92, minWidth: 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2C2C2E) : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    note.content,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white : Colors.black87,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 7),
+
+          // Username
+          SizedBox(
+            width: 68,
+            child: Text(
+              note.username,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(note.username, style: const TextStyle(fontSize: 11)),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

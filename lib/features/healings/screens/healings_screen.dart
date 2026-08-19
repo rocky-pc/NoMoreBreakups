@@ -9,7 +9,6 @@ class HealingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Healings', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: Center(

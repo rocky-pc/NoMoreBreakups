@@ -69,12 +69,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.favorite, size: 80, color: AppColors.rose),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 Text(
                   'No More Breakups',
-                  style: AppStyles.headingLarge,
+                  style: AppStyles.brandName,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   'Healing and Growing Together',
                   style: AppStyles.caption,

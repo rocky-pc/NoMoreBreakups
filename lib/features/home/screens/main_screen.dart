@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../feed/screens/feed_screen.dart';
 import '../../healings/screens/healings_screen.dart';
@@ -24,54 +26,190 @@ class _MainScreenState extends State<MainScreen> {
     ProfileScreen(),
   ];
 
+  final List<_NavItemData> _navItems = const [
+    _NavItemData(icon: Icons.home_rounded, outlineIcon: Icons.home_outlined),
+    _NavItemData(icon: Icons.favorite_rounded, outlineIcon: Icons.favorite_outline_rounded),
+    _NavItemData(icon: Icons.search_rounded, outlineIcon: Icons.search_rounded),
+    _NavItemData(icon: Icons.chat_bubble_rounded, outlineIcon: Icons.chat_bubble_outline_rounded),
+    _NavItemData(icon: Icons.person_rounded, outlineIcon: Icons.person_outline_rounded),
+  ];
+
+  void _onTabTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    HapticFeedback.selectionClick();
+    setState(() => _selectedIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      extendBody: true,
+      body: SafeArea(
+        bottom: false,
+        child: _buildFluidPageSwitcher(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.rose,
-        unselectedItemColor: AppColors.textSecondary,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: _buildFixedNavBar(context),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Ultra fluid page transition (fade + micro-slide + scale)
+  // ---------------------------------------------------------------------
+  Widget _buildFluidPageSwitcher() {
+    return Stack(
+      children: List.generate(_pages.length, (index) {
+        final bool isSelected = index == _selectedIndex;
+
+        return IgnorePointer(
+          ignoring: !isSelected,
+          child: AnimatedOpacity(
+            opacity: isSelected ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 340),
+            curve: Curves.easeOutCubic,
+            child: AnimatedSlide(
+              offset: isSelected ? Offset.zero : const Offset(0, 0.015),
+              duration: const Duration(milliseconds: 340),
+              curve: Curves.easeOutCubic,
+              child: AnimatedScale(
+                scale: isSelected ? 1.0 : 0.975,
+                duration: const Duration(milliseconds: 340),
+                curve: Curves.easeOutCubic,
+                child: _pages[index],
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_outline_rounded),
-            activeIcon: Icon(Icons.favorite_rounded),
-            label: 'Healings',
+        );
+      }),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Frosted glass nav bar with fluid sliding indicator + pop icons
+  // ---------------------------------------------------------------------
+  Widget _buildFixedNavBar(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+
+    final barColor = isDarkMode
+        ? AppColors.darkCharcoal.withOpacity(0.78)
+        : scaffoldBg.withOpacity(0.82);
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: barColor,
+            border: Border(
+              top: BorderSide(
+                color: isDarkMode
+                    ? Colors.white.withOpacity(0.07)
+                    : AppColors.rose.withOpacity(0.14),
+                width: 0.7,
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            activeIcon: Icon(Icons.search_rounded),
-            label: 'Search',
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 64,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double barWidth = constraints.maxWidth;
+                  final double itemWidth = barWidth / _navItems.length;
+                  const double indicatorSize = 42;
+
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // ── Sliding rose pill (fluid) ───────────────────
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 360),
+                        curve: Curves.easeOutBack,
+                        left: itemWidth * _selectedIndex + (itemWidth - indicatorSize) / 2,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 360),
+                          curve: Curves.easeOutBack,
+                          width: indicatorSize,
+                          height: indicatorSize,
+                          decoration: BoxDecoration(
+                            color: AppColors.rose,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.rose.withOpacity(0.42),
+                                blurRadius: 16,
+                                spreadRadius: 1,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // ── Nav icons ───────────────────────────────────
+                      Row(
+                        children: List.generate(_navItems.length, (index) {
+                          final bool isSelected = index == _selectedIndex;
+                          final item = _navItems[index];
+
+                          return SizedBox(
+                            width: itemWidth,
+                            height: 40,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _onTabTapped(index),
+                              child: Center(
+                                child: TweenAnimationBuilder<double>(
+                                  duration: const Duration(milliseconds: 320),
+                                  curve: Curves.easeOutBack,
+                                  tween: Tween<double>(
+                                    begin: 0.0,
+                                    end: isSelected ? 1.0 : 0.0,
+                                  ),
+                                  builder: (context, value, child) {
+                                    final Color iconColor = Color.lerp(
+                                      isDarkMode
+                                          ? Colors.white70
+                                          : AppColors.textSecondary,
+                                      Colors.white,
+                                      value,
+                                    )!;
+
+                                    return Transform.scale(
+                                      scale: 1.0 + (value * 0.18),
+                                      child: Icon(
+                                        isSelected ? item.icon : item.outlineIcon,
+                                        size: 22 + (value * 1.5),
+                                        color: iconColor,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            activeIcon: Icon(Icons.chat_bubble_rounded),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _NavItemData {
+  final IconData icon;
+  final IconData outlineIcon;
+
+  const _NavItemData({
+    required this.icon,
+    required this.outlineIcon,
+  });
 }

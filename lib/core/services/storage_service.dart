@@ -24,13 +24,14 @@ class StorageService {
     }
   }
 
-  /// Uploads an image to the 'avatars' bucket
+  /// Uploads an image to the 'avatars' bucket with cache-busting
   static Future<String?> uploadAvatar(File imageFile) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw 'User not authenticated';
 
-      final path = '$userId/avatar.jpg';
+      final fileExtension = imageFile.path.split('.').last;
+      final path = '$userId/avatar.$fileExtension';
 
       // Use upsert: true to overwrite old avatar
       await _client.storage.from('avatars').upload(
@@ -40,7 +41,8 @@ class StorageService {
       );
       
       final url = _client.storage.from('avatars').getPublicUrl(path);
-      return url;
+      // Append cache-buster to ensure the UI refreshes the image
+      return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
     } catch (e) {
       print('Error uploading avatar: $e');
       return null;

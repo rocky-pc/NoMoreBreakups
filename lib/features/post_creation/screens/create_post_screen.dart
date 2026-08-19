@@ -41,7 +41,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Post'),
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -81,14 +80,33 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
             const SizedBox(height: 16),
             if (_imagePath != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  File(_imagePath!),
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(_imagePath!),
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _imagePath = null),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 18, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             const SizedBox(height: 16),
             ElevatedButton.icon(

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/app_colors.dart';
 import 'features/auth/screens/login_screen.dart';
 
+import 'core/theme/theme_provider.dart';
 import 'features/home/screens/main_screen.dart';
 
 void main() async {
@@ -27,15 +28,22 @@ class NoMoreBreakupsApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = Supabase.instance.client.auth.currentSession;
+    final themeMode = ref.watch(themeProvider);
 
     return MaterialApp(
       title: 'No More Breakups',
       debugShowCheckedModeBanner: false,
+      themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColors.rose,
         brightness: Brightness.light,
         scaffoldBackgroundColor: Colors.white,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: AppColors.rose,
+        brightness: Brightness.dark,
       ),
       home: session != null ? const MainScreen() : const LoginScreen(),
     );
