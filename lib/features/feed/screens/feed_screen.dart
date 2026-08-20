@@ -28,9 +28,42 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _handleReact(String postId, ReactionType reaction) {
-    if (reaction == ReactionType.heartbreak) {
-      ref.read(feedPostsProvider.notifier).toggleHeartbreak(postId);
-    }
+    ref.read(feedPostsProvider.notifier).toggleReaction(postId, reaction);
+  }
+
+  void _showAddNoteDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Share a thought'),
+        content: TextField(
+          controller: controller,
+          maxLength: 60,
+          decoration: const InputDecoration(
+            hintText: 'What\'s on your mind? (60 characters)',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final content = controller.text.trim();
+              if (content.isNotEmpty) {
+                ref.read(notesProvider.notifier).addNote(content);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Share'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -67,8 +100,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: NotesCarousel(
                         notes: notes,
-                        onAddNote: () {
-                          // Implement add note dialog
+                        onAddNote: _showAddNoteDialog,
+                        onNoteTap: (note) {
+                          // Optional: Show full note or navigate
                         },
                       ),
                     ),

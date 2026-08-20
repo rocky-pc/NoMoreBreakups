@@ -4,14 +4,16 @@ class MessageModel {
   final String senderId;
   final String receiverId;
   final String content;
+  final bool isRead;
   final DateTime createdAt;
 
-  const MessageModel({
+  MessageModel({
     required this.id,
     required this.conversationId,
     required this.senderId,
     required this.receiverId,
     required this.content,
+    this.isRead = false,
     required this.createdAt,
   });
 
@@ -19,11 +21,22 @@ class MessageModel {
     return MessageModel(
       id: json['id'].toString(),
       conversationId: json['conversation_id'].toString(),
-      senderId: json['sender_id'] as String,
-      receiverId: json['receiver_id'] as String,
-      content: json['content'] as String,
+      senderId: json['sender_id'].toString(),
+      receiverId: json['receiver_id'].toString(),
+      content: json['content'] ?? '',
+      isRead: json['is_read'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'conversation_id': conversationId,
+      'sender_id': senderId,
+      'receiver_id': receiverId,
+      'content': content,
+      'is_read': isRead,
+    };
   }
 }
 
@@ -35,7 +48,7 @@ class ConversationModel {
   final String lastMessage;
   final DateTime updatedAt;
 
-  const ConversationModel({
+  ConversationModel({
     required this.id,
     required this.otherUserId,
     required this.otherUserName,

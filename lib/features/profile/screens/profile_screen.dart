@@ -8,6 +8,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../feed/models/post_model.dart';
+import '../../feed/widgets/post_card.dart';
+import '../../messages/controllers/message_controller.dart';
+import '../../messages/screens/chat_screen.dart';
+import '../../post_creation/screens/create_post_screen.dart';
 import '../controllers/profile_controller.dart';
 import '../models/profile_state.dart';
 import 'follow_list_screen.dart';
@@ -138,7 +143,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ListTile(
                   leading: const Icon(Icons.edit_outlined, color: AppColors.rose),
                   title: const Text('Edit Profile'),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    Navigator.pop(context);
+                    final profile = ref.read(profileControllerProvider(_effectiveUserId)).value?.profile;
+                    _showEditProfileDialog(profile);
+                  },
                 ),
               SwitchListTile(
                 secondary: Icon(
@@ -168,6 +177,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showPostOptions(PostModel post) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkCharcoal : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isOwnProfile) ...[
+              ListTile(
+                leading: const Icon(Icons.edit_rounded, color: Colors.blue),
+                title: const Text('Edit Post'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreatePostScreen(postToEdit: post),
+                    ),
+                  ).then((_) => ref.read(profileControllerProvider(_effectiveUserId).notifier).fetchProfileData());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_rounded, color: Colors.red),
+                title: const Text('Delete Post', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete Post'),
+                      content: const Text('Are you sure you want to delete this post?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    if (mounted) Navigator.pop(context);
+                    await ref.read(profileControllerProvider(_effectiveUserId).notifier).deletePost(post.id);
+                  }
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.share_rounded),
+              title: const Text('Share'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -430,12 +499,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () async {
+                              if (_isOwnProfile) {
+                                // Share Profile logic
+                              } else {
+                                final conversationId = await ref.read(messageControllerProvider).getOrCreateConversation(_effectiveUserId);
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(
+                                        conversationId: conversationId,
+                                        otherUserId: _effectiveUserId,
+                                        otherUserName: displayName,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            child: const Text('Share Profile', style: TextStyle(fontWeight: FontWeight.w600)),
+                            child: Text(_isOwnProfile ? 'Share Profile' : 'Message', style: const TextStyle(fontWeight: FontWeight.w600)),
                           ),
                         ),
                       ],
@@ -454,7 +541,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Row(
                         children: [
                           _tabIcon(Icons.grid_on_rounded, 0),
-                          _tabIcon(Icons.video_collection_outlined, 1),
+                          _tabIcon(Icons.format_list_bulleted_rounded, 1),
                           _tabIcon(Icons.person_pin_outlined, 2),
                         ],
                       ),
@@ -462,13 +549,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
 
-                // Photo grid
+                // Post content (Grid or Feed)
                 if (userPosts.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(child: Text('No posts yet')),
                   )
-                else
+                else if (_selectedTab == 0)
                   SliverPadding(
                     padding: const EdgeInsets.all(2),
                     sliver: SliverGrid(
@@ -478,32 +565,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final post = userPosts[index];
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: isDarkMode ? Colors.white.withAlpha(10) : AppColors.softGrey,
-                              image: post.mediaUrl != null
-                                  ? DecorationImage(image: CachedNetworkImageProvider(post.mediaUrl!), fit: BoxFit.cover)
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedTab = 1),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? Colors.white.withAlpha(10) : AppColors.softGrey,
+                                image: post.mediaUrl != null
+                                    ? DecorationImage(image: CachedNetworkImageProvider(post.mediaUrl!), fit: BoxFit.cover)
+                                    : null,
+                              ),
+                              child: post.mediaUrl == null
+                                  ? Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Text(
+                                          post.content,
+                                          maxLines: 4,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 8, color: isDarkMode ? Colors.white70 : Colors.black87),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    )
                                   : null,
                             ),
-                            child: post.mediaUrl == null
-                                ? Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        post.content,
-                                        maxLines: 4,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontSize: 8, color: isDarkMode ? Colors.white70 : Colors.black87),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  )
-                                : null,
                           );
                         },
                         childCount: userPosts.length,
                       ),
                     ),
+                  )
+                else if (_selectedTab == 1)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final post = userPosts[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: PostCard(
+                            post: post,
+                            onReact: (reaction) => ref.read(profileControllerProvider(_effectiveUserId).notifier).togglePostReaction(post.id, reaction),
+                            onComment: () {},
+                            onShare: () {},
+                            onMore: () => _showPostOptions(post),
+                          ),
+                        );
+                      },
+                      childCount: userPosts.length,
+                    ),
+                  )
+                else
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: Text('Coming Soon')),
                   ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),

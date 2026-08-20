@@ -36,6 +36,15 @@ class PostModel {
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
+    // Handle user reaction from join if available
+    String? userReactionRaw = json['user_reaction'] as String?;
+    if (userReactionRaw == null && json['post_reactions'] != null) {
+      final reactions = json['post_reactions'] as List;
+      if (reactions.isNotEmpty) {
+        userReactionRaw = reactions.first['reaction_type'] as String?;
+      }
+    }
+
     return PostModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
@@ -48,9 +57,9 @@ class PostModel {
       heartbreakCount: json['heartbreak_count'] ?? 0,
       healingCount: json['healing_count'] ?? 0,
       commentCount: json['comment_count'] ?? 0,
-      userReaction: json['user_reaction'] == 'heartbreak' 
+      userReaction: userReactionRaw == 'heartbreak' 
           ? ReactionType.heartbreak 
-          : (json['user_reaction'] == 'healing' ? ReactionType.healing : null),
+          : (userReactionRaw == 'healing' ? ReactionType.healing : null),
       createdAt: DateTime.parse(json['created_at']),
     );
   }

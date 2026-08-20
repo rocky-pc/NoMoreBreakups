@@ -17,8 +17,8 @@ class MessagesScreen extends ConsumerWidget {
         title: const Text('Messages', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
-      body: FutureBuilder<List<ConversationModel>>(
-        future: ref.read(messageControllerProvider).fetchConversations(),
+      body: StreamBuilder<List<ConversationModel>>(
+        stream: ref.read(messageControllerProvider).streamConversations(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

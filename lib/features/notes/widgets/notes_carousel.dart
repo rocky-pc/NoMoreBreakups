@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:no_more_breakups/features/notes/models/note_model.dart';
 
 class NotesCarousel extends StatelessWidget {
@@ -41,6 +42,10 @@ class NotesCarousel extends StatelessWidget {
   Widget _buildAddNoteButton(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    
+    // Try to get current user's avatar
+    final user = Supabase.instance.client.auth.currentUser;
+    final avatarUrl = user?.userMetadata?['avatar_url'];
 
     return GestureDetector(
       onTap: onAddNote,
@@ -60,20 +65,56 @@ class NotesCarousel extends StatelessWidget {
               ),
             ),
             child: Center(
-              child: Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark
-                      ? Colors.white.withOpacity(0.08)
-                      : Colors.grey.shade100,
-                ),
-                child: Icon(
-                  Icons.add_rounded,
-                  size: 28,
-                  color: isDark ? Colors.white70 : Colors.black87,
-                ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark
+                          ? Colors.white.withOpacity(0.08)
+                          : Colors.grey.shade100,
+                      image: avatarUrl != null 
+                          ? DecorationImage(
+                              image: CachedNetworkImageProvider(avatarUrl),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: avatarUrl == null 
+                        ? Icon(
+                            Icons.person_rounded,
+                            size: 28,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

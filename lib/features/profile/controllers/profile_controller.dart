@@ -153,6 +153,62 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileState>> {
     }
   }
 
+  Future<void> deletePost(String postId) async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId == null || currentUserId != targetUserId) return;
+
+    try {
+      await Supabase.instance.client
+          .from('posts')
+          .delete()
+          .eq('id', postId)
+          .eq('user_id', currentUserId);
+      
+      await fetchProfileData();
+    } catch (e) {
+      debugPrint('Error deleting post: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> togglePostReaction(String postId, ReactionType reaction) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final existing = await Supabase.instance.client
+          .from('post_reactions')
+          .select()
+          .eq('post_id', postId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existing != null) {
+        final existingType = existing['reaction_type'] == 'healing' 
+            ? ReactionType.healing 
+            : ReactionType.heartbreak;
+
+        if (existingType == reaction) {
+          await Supabase.instance.client.from('post_reactions').delete().eq('id', existing['id']);
+        } else {
+          await Supabase.instance.client
+              .from('post_reactions')
+              .update({'reaction_type': reaction == ReactionType.healing ? 'healing' : 'heartbreak'})
+              .eq('id', existing['id']);
+        }
+      } else {
+        await Supabase.instance.client.from('post_reactions').insert({
+          'post_id': postId,
+          'user_id': userId,
+          'reaction_type': reaction == ReactionType.healing ? 'healing' : 'heartbreak',
+        });
+      }
+      await fetchProfileData();
+    } catch (e) {
+      debugPrint('Error toggling reaction: $e');
+    }
+  }
+
   Future<void> uploadProfileImage(File imageFile) async {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     if (currentUserId == null || currentUserId != targetUserId) return;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "129025097387",
+    "project_id": "no-more-breakups",
+    "storage_bucket": "no-more-breakups.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129025097387:android:5cd0715f8fb116c2d701ee",
+        "android_client_info": {
+          "package_name": "com.example.no_more_breakups"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArZTssXo-e1EZM3dxNphlre9COBaZWIMQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
