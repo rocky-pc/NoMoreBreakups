@@ -8,6 +8,8 @@ import 'package:no_more_breakups/features/feed/controllers/feed_controller.dart'
 import 'package:share_plus/share_plus.dart';
 import 'package:no_more_breakups/features/notes/controllers/notes_controller.dart';
 import 'package:no_more_breakups/features/notes/widgets/notes_carousel.dart';
+import 'package:no_more_breakups/features/notifications/controllers/notifications_controller.dart';
+import 'package:no_more_breakups/features/notifications/screens/activity_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_styles.dart';
 import '../../post_creation/screens/create_post_screen.dart';
@@ -173,6 +175,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         children: [
           // Centered fluid gradient title
           ShaderMask(
+            blendMode: BlendMode.srcIn,
             shaderCallback: (bounds) => LinearGradient(
               colors: [
                 AppColors.rose,
@@ -183,7 +186,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               end: Alignment.bottomRight,
             ).createShader(bounds),
             child: Text(
-              'No More Breakups',
+              'No More Breakups  ',
               textAlign: TextAlign.center,
               style: AppStyles.brandName.copyWith(
                 fontSize: 33,
@@ -197,11 +200,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           // Notification bell, pinned right
           Align(
             alignment: Alignment.centerRight,
-            child: _iconBubble(
-              icon: Icons.lens_blur_outlined,
-              isDarkMode: isDarkMode,
-              onTap: () {},
-              showDot: true,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final unreadCountAsync = ref.watch(unreadNotificationCountProvider);
+                final unreadCount = unreadCountAsync.value ?? 0;
+                return _iconBubble(
+                  icon: Icons.lens_blur_outlined,
+                  isDarkMode: isDarkMode,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ActivityScreen()),
+                    );
+                  },
+                  showDot: unreadCount > 0,
+                );
+              },
             ),
           ),
         ],

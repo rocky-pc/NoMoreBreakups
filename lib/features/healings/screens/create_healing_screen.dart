@@ -2,8 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:no_more_breakups/core/constants/app_colors.dart';
-import 'package:no_more_breakups/core/services/storage_service.dart';
+import '../../../core/constants/app_colors.dart';
 import '../controllers/healings_controller.dart';
 
 class CreateHealingScreen extends ConsumerStatefulWidget {
@@ -15,132 +14,131 @@ class CreateHealingScreen extends ConsumerStatefulWidget {
 
 class _CreateHealingScreenState extends ConsumerState<CreateHealingScreen> {
   final _contentController = TextEditingController();
-  final _imagePicker = ImagePicker();
-  String? _imagePath;
+  final _picker = ImagePicker();
+  File? _selectedImage;
+  String _selectedMood = 'Healing';
+  bool _isPosting = false;
+
+  final List<String> _moods = ['Healing', 'Reflective', 'Letting Go', 'Hopeful', 'Grateful'];
 
   Future<void> _pickImage() async {
-    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked != null) {
-      setState(() => _imagePath = picked.path);
+      setState(() => _selectedImage = File(picked.path));
     }
   }
 
-  void _postHealing() async {
-    final content = _contentController.text.trim();
-    if (content.isEmpty) return;
+  void _submit() async {
+    final text = _contentController.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please write your reflection before posting')),
+      );
+      return;
+    }
 
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: AppColors.rose)),
-    );
-
+    setState(() => _isPosting = true);
     try {
-      String? mediaUrl;
-      if (_imagePath != null) {
-        mediaUrl = await StorageService.uploadPostImage(File(_imagePath!));
-      }
-
-      await ref.read(healingPostsProvider.notifier).createHealing(content, mediaUrl);
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading
-        Navigator.pop(context); // Go back
-      }
+      await ref.read(healingsProvider.notifier).createHealing(
+            content: text,
+            mood: _selectedMood,
+            imageFile: _selectedImage,
+          );
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Share your journey', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Write Healing Entry', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
         actions: [
-          TextButton(
-            onPressed: _postHealing,
-            child: const Text('Post', style: TextStyle(color: AppColors.rose, fontWeight: FontWeight.bold, fontSize: 16)),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton(
+              onPressed: _isPosting ? null : _submit,
+              child: _isPosting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Post', style: TextStyle(color: AppColors.rose, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.rose,
-                  child: Icon(Icons.person, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _contentController,
-                    maxLines: null,
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 17, height: 1.4),
-                    decoration: const InputDecoration(
-                      hintText: "What's your story, lesson, or pain? Share it here...",
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ],
+            // Mood Selector
+            const Text('Select Your State of Mind:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: _moods.map((mood) {
+                final isSelected = mood == _selectedMood;
+                return ChoiceChip(
+                  label: Text(mood),
+                  selected: isSelected,
+                  selectedColor: AppColors.rose.withValues(alpha: 0.2),
+                  onSelected: (val) => setState(() => _selectedMood = mood),
+                );
+              }).toList(),
             ),
-            if (_imagePath != null) ...[
-              const SizedBox(height: 16),
+            const SizedBox(height: 18),
+
+            // Journal text area
+            TextField(
+              controller: _contentController,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                hintText: 'Share your healing experience, thoughts, or milestone...',
+                border: InputBorder.none,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Optional Image Preview
+            if (_selectedImage != null)
               Stack(
+                alignment: Alignment.topRight,
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.file(
-                      File(_imagePath!),
-                      width: double.infinity,
-                      maxHeight: 300,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _imagePath = null),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, size: 18, color: Colors.white),
+                    borderRadius: BorderRadius.circular(14),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      child: Image.file(
+                        _selectedImage!,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
+                  IconButton(
+                    icon: const CircleAvatar(backgroundColor: Colors.black54, child: Icon(Icons.close, color: Colors.white, size: 18)),
+                    onPressed: () => setState(() => _selectedImage = null),
+                  ),
                 ],
               ),
-            ],
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: isDarkMode ? Colors.white10 : Colors.black12)),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.image_outlined, color: AppColors.rose),
+
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
               onPressed: _pickImage,
+              icon: const Icon(Icons.image_outlined, color: AppColors.rose),
+              label: const Text('Add Reflection Photo', style: TextStyle(color: AppColors.rose)),
             ),
-            const Spacer(),
-            const Text('Share safely with the community', style: TextStyle(color: Colors.grey, fontSize: 12)),
           ],
         ),
       ),

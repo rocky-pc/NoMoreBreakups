@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:no_more_breakups/features/notifications/controllers/notifications_controller.dart';
 import '../models/comment_model.dart';
 
 final commentsProvider = StateNotifierProvider.family<CommentsController, AsyncValue<List<CommentModel>>, String>((ref, postId) {
@@ -41,6 +42,15 @@ class CommentsController extends StateNotifier<AsyncValue<List<CommentModel>>> {
         'user_id': userId,
         'content': content,
       });
+
+      // Trigger notification
+      final postResponse = await _supabase.from('posts').select('user_id').eq('id', postId).single();
+      NotificationController.sendNotification(
+        receiverId: postResponse['user_id'],
+        type: 'comment',
+        postId: postId,
+      );
+
       await fetchComments();
     } catch (e) {
       debugPrint('Error adding comment: $e');

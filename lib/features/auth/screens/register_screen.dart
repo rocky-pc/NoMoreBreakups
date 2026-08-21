@@ -118,10 +118,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       final authState = ref.read(authControllerProvider);
       authState.whenOrNull(
         data: (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account created successfully! Please log in.')),
-          );
-          Navigator.of(context).pop();
+          _showSuccessDialog();
         },
         error: (error, _) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +127,61 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         },
       );
     }
+  }
+
+  void _showSuccessDialog() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDarkMode ? AppColors.darkCharcoal : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.rose.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.mark_email_read_rounded, color: AppColors.rose, size: 40),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Verify Your Email',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          'A confirmation link has been sent to your Gmail inbox. Please confirm your email to activate your account and then log in.',
+          textAlign: TextAlign.center,
+          style: TextStyle(height: 1.4),
+        ),
+        actions: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Go back to Login
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.rose,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Got it, let\'s login!', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -244,7 +296,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             end: Alignment.bottomRight,
           ).createShader(bounds),
           child: Text(
-            'Create Account ',
+            'Create Account  ',
             textAlign: TextAlign.center,
             style: AppStyles.brandName.copyWith(
               fontSize: 28,

@@ -1,14 +1,13 @@
-enum NotificationType { like, heal, comment, follow }
-
 class NotificationModel {
   final String id;
   final String receiverId;
   final String senderId;
   final String senderName;
   final String? senderAvatar;
-  final NotificationType type;
+  final String type; // 'heartbreak', 'heal', 'comment', 'follow'
   final String? postId;
   final String? healingId;
+  final String? contentPreview;
   final bool isRead;
   final DateTime createdAt;
 
@@ -21,33 +20,25 @@ class NotificationModel {
     required this.type,
     this.postId,
     this.healingId,
+    this.contentPreview,
     this.isRead = false,
     required this.createdAt,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
-    final sender = json['profiles'];
+    final sender = json['sender'] ?? json['profiles'];
     return NotificationModel(
       id: json['id'].toString(),
       receiverId: json['receiver_id'].toString(),
       senderId: json['sender_id'].toString(),
-      senderName: sender?['display_name'] ?? sender?['username'] ?? 'Someone',
+      senderName: sender?['display_name'] ?? sender?['username'] ?? 'Anonymous',
       senderAvatar: sender?['avatar_url'],
-      type: _parseType(json['type']),
+      type: json['type'] ?? 'like',
       postId: json['post_id']?.toString(),
       healingId: json['healing_id']?.toString(),
+      contentPreview: json['content_preview'] as String?,
       isRead: json['is_read'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
     );
-  }
-
-  static NotificationType _parseType(String type) {
-    switch (type) {
-      case 'like': return NotificationType.like;
-      case 'heal': return NotificationType.heal;
-      case 'comment': return NotificationType.comment;
-      case 'follow': return NotificationType.follow;
-      default: return NotificationType.like;
-    }
   }
 }

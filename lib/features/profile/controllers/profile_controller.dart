@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:no_more_breakups/features/notifications/controllers/notifications_controller.dart';
 import '../../../core/services/storage_service.dart';
 import '../../feed/models/post_model.dart';
 import '../models/profile_state.dart';
@@ -16,10 +17,13 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileState>> {
     fetchProfileData();
   }
 
-  Future<void> fetchProfileData() async {
+  Future<void> fetchProfileData({bool silent = false}) async {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     
-    state = const AsyncValue.loading();
+    if (!silent) {
+      state = const AsyncValue.loading();
+    }
+
     try {
       // 1. Fetch user profile info
       final profileResponse = await Supabase.instance.client
@@ -88,25 +92,47 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileState>> {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     if (currentUserId == null || currentUserId == targetUserId) return;
 
-    try {
-      final existing = await Supabase.instance.client
-          .from('follows')
-          .select()
-          .eq('follower_id', currentUserId)
-          .eq('following_id', targetUserId)
-          .maybeSingle();
+    final previousState = state.value;
+    if (previousState == null) return;
 
-      if (existing != null) {
-        await Supabase.instance.client.from('follows').delete().eq('id', existing['id']);
+    // Optimistic Update
+    final isFollowing = !previousState.isFollowing;
+    final followersCount = isFollowing 
+        ? previousState.followersCount + 1 
+        : (previousState.followersCount > 0 ? previousState.followersCount - 1 : 0);
+    
+    state = AsyncValue.data(previousState.copyWith(
+      isFollowing: isFollowing,
+      followersCount: followersCount,
+    ));
+
+    try {
+      if (!isFollowing) {
+        // User was following, now unfollowing
+        await Supabase.instance.client
+            .from('follows')
+            .delete()
+            .eq('follower_id', currentUserId)
+            .eq('following_id', targetUserId);
       } else {
+        // User was not following, now following
         await Supabase.instance.client.from('follows').insert({
           'follower_id': currentUserId,
           'following_id': targetUserId,
         });
+
+        // Trigger notification
+        NotificationController.sendNotification(
+          receiverId: targetUserId,
+          type: 'follow',
+        );
       }
-      await fetchProfileData();
+      // Refresh in background to sync with server counts/data
+      await fetchProfileData(silent: true);
     } catch (e) {
       debugPrint('Error toggling follow: $e');
+      // Rollback on error
+      state = AsyncValue.data(previousState);
     }
   }
 
@@ -125,7 +151,7 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileState>> {
           .update({'show_relationship_status': newValue})
           .eq('id', currentUserId);
       
-      await fetchProfileData();
+      await fetchProfileData(silent: true);
     } catch (e) {
       debugPrint('Error toggling relationship status visibility: $e');
     }
@@ -146,7 +172,7 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileState>> {
             .update(updates)
             .eq('id', currentUserId);
         
-        await fetchProfileData();
+        await fetchProfileData(silent: true);
       }
     } catch (e) {
       debugPrint('Error updating profile details: $e');
@@ -202,8 +228,15 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileState>> {
           'user_id': userId,
           'reaction_type': reaction == ReactionType.healing ? 'healing' : 'heartbreak',
         });
+
+        // Trigger notification
+        NotificationController.sendNotification(
+          receiverId: targetUserId, // We are already in the context of this user's profile
+          type: reaction == ReactionType.healing ? 'heal' : 'like',
+          postId: postId,
+        );
       }
-      await fetchProfileData();
+      await fetchProfileData(silent: true);
     } catch (e) {
       debugPrint('Error toggling reaction: $e');
     }

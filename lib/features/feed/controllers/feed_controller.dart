@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:no_more_breakups/features/notifications/controllers/notifications_controller.dart';
 import 'package:no_more_breakups/features/feed/models/post_model.dart';
 
 final feedPostsProvider = StateNotifierProvider<FeedController, List<PostModel>>((ref) {
@@ -68,6 +69,14 @@ class FeedController extends StateNotifier<List<PostModel>> {
           'user_id': userId,
           'reaction_type': reaction == ReactionType.healing ? 'healing' : 'heartbreak',
         });
+
+        // Trigger notification
+        final post = state.firstWhere((p) => p.id == postId);
+        NotificationController.sendNotification(
+          receiverId: post.userId,
+          type: reaction == ReactionType.healing ? 'heal' : 'like',
+          postId: postId,
+        );
       }
       
       // Removed immediate fetchPosts() to prevent state flicker/revert.

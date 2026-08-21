@@ -3,8 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
 
 final notificationsProvider =
-    StateNotifierProvider<NotificationsNotifier, AsyncValue<List<NotificationModel>>>((ref) {
-  return NotificationsNotifier();
+    StateNotifierProvider<NotificationController, AsyncValue<List<NotificationModel>>>((ref) {
+  return NotificationController();
 });
 
 // Stream unread count for the app bar bell badge
@@ -19,8 +19,8 @@ final unreadNotificationCountProvider = StreamProvider<int>((ref) {
       .map((events) => events.where((e) => e['is_read'] == false).length);
 });
 
-class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationModel>>> {
-  NotificationsNotifier() : super(const AsyncValue.loading()) {
+class NotificationController extends StateNotifier<AsyncValue<List<NotificationModel>>> {
+  NotificationController() : super(const AsyncValue.loading()) {
     fetchNotifications();
   }
 

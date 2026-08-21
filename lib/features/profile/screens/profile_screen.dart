@@ -116,16 +116,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _openMenuSheet() {
     final themeMode = ref.read(themeProvider);
-    final isDarkMode = themeMode == ThemeMode.dark;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final isDarkModeSheet = Theme.of(context).brightness == Brightness.dark;
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isDarkMode ? AppColors.darkCharcoal : Colors.white,
+            color: isDarkModeSheet ? AppColors.darkCharcoal : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
@@ -135,7 +136,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 width: 40, height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.white24 : AppColors.softGrey,
+                  color: isDarkModeSheet ? Colors.white24 : AppColors.softGrey,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -151,11 +152,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               SwitchListTile(
                 secondary: Icon(
-                  themeMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                  isDarkModeSheet ? Icons.dark_mode : Icons.light_mode,
                   color: AppColors.rose,
                 ),
                 title: const Text('Dark Mode'),
-                value: themeMode == ThemeMode.dark,
+                subtitle: themeMode == ThemeMode.system ? const Text('Following System', style: TextStyle(fontSize: 10)) : null,
+                value: isDarkModeSheet,
                 onChanged: (bool value) {
                   ref.read(themeProvider.notifier).setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
                   Navigator.pop(context);
