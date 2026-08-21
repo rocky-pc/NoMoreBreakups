@@ -62,7 +62,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _blobController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 18),
-    )..repeat(reverse: true);
+    );
+    _blobController.repeat(reverse: true);
 
     _blob1 = Tween<double>(begin: -12, end: 14).animate(
       CurvedAnimation(parent: _blobController, curve: Curves.easeInOutSine),
@@ -217,6 +218,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         const SizedBox(height: 18),
         // Gradient title (same style as FeedScreen)
         ShaderMask(
+          blendMode: BlendMode.srcIn,
           shaderCallback: (bounds) => LinearGradient(
             colors: [
               AppColors.rose,

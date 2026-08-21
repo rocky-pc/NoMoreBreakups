@@ -156,7 +156,7 @@ class _MainScreenState extends State<MainScreen> {
 
                           return SizedBox(
                             width: itemWidth,
-                            height: 40,
+                            height: 30,
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () => _onTabTapped(index),

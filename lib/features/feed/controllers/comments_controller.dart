@@ -20,7 +20,7 @@ class CommentsController extends StateNotifier<AsyncValue<List<CommentModel>>> {
       state = const AsyncValue.loading();
       final response = await _supabase
           .from('post_comments')
-          .select('*, profiles(username, display_name, avatar_url)')
+          .select('*, profiles(id, username, display_name, avatar_url)')
           .eq('post_id', postId)
           .order('created_at', ascending: true);
       

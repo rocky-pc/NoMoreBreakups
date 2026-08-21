@@ -12,20 +12,15 @@ class MessagesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final conversationsAsync = ref.watch(conversationsStreamProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Messages', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
-      body: StreamBuilder<List<ConversationModel>>(
-        stream: ref.read(messageControllerProvider).streamConversations(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final conversations = snapshot.data ?? [];
-          
+      body: conversationsAsync.when(
+        data: (conversations) {
           if (conversations.isEmpty) {
             return Center(
               child: Column(
@@ -66,7 +61,7 @@ class MessagesScreen extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: Text(
-                  '${conversation.updatedAt.hour}:${conversation.updatedAt.minute}',
+                  '${conversation.updatedAt.hour}:${conversation.updatedAt.minute.toString().padLeft(2, '0')}',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
@@ -77,6 +72,7 @@ class MessagesScreen extends ConsumerWidget {
                         conversationId: conversation.id,
                         otherUserId: conversation.otherUserId,
                         otherUserName: conversation.otherUserName,
+                        otherUserAvatar: conversation.otherUserAvatar,
                       ),
                     ),
                   );
@@ -85,6 +81,8 @@ class MessagesScreen extends ConsumerWidget {
             },
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.rose)),
+        error: (err, stack) => Center(child: Text('Error loading conversations: $err')),
       ),
     );
   }

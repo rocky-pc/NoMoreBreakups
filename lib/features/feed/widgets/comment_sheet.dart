@@ -108,8 +108,7 @@ class _CommentSheetState extends ConsumerState<CommentSheet> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          // DateFormatter.timeAgo(comment.createdAt),
-                                          'Just now',
+                                          formatRelativeTime(comment.createdAt),
                                           style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey),
                                         ),
                                       ],

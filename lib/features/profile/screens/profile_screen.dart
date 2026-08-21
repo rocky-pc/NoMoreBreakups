@@ -512,6 +512,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         conversationId: conversationId,
                                         otherUserId: _effectiveUserId,
                                         otherUserName: displayName,
+                                        otherUserAvatar: avatarUrl,
                                       ),
                                     ),
                                   );

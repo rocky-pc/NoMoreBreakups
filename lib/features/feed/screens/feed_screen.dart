@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:no_more_breakups/features/feed/models/post_model.dart';
 import 'package:no_more_breakups/features/feed/widgets/post_card.dart';
+import 'package:no_more_breakups/features/feed/widgets/comment_sheet.dart';
 import 'package:no_more_breakups/features/feed/controllers/feed_controller.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:no_more_breakups/features/notes/controllers/notes_controller.dart';
 import 'package:no_more_breakups/features/notes/widgets/notes_carousel.dart';
 import '../../../core/constants/app_colors.dart';
@@ -29,6 +31,24 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   void _handleReact(String postId, ReactionType reaction) {
     ref.read(feedPostsProvider.notifier).toggleReaction(postId, reaction);
+  }
+
+  void _showComments(PostModel post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentSheet(post: post),
+    );
+  }
+
+  void _handleShare(PostModel post) {
+    Share.share(
+      'Check out this ${post.postType == PostType.advice ? "advice" : "story"} on No More Breakups:\n\n'
+      '${post.content}\n\n'
+      'Shared by ${post.authorName}',
+      subject: 'No More Breakups - ${post.postType == PostType.advice ? "Advice" : "Story"}',
+    );
   }
 
   void _showAddNoteDialog() {
@@ -121,8 +141,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             child: PostCard(
                               post: post,
                               onReact: (r) => _handleReact(post.id, r),
-                              onComment: () {},
-                              onShare: () {},
+                              onComment: () => _showComments(post),
+                              onShare: () => _handleShare(post),
                             ),
                           );
                         },

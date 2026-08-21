@@ -16,7 +16,7 @@ class FeedController extends StateNotifier<List<PostModel>> {
       // Fetch posts with profiles and current user's reaction
       final response = await Supabase.instance.client
           .from('posts')
-          .select('*, profiles(username, display_name, avatar_url), post_reactions(reaction_type)')
+          .select('*, profiles(id, username, display_name, avatar_url), post_reactions(reaction_type)')
           .eq('post_reactions.user_id', userId ?? '')
           .order('created_at', ascending: false);
       

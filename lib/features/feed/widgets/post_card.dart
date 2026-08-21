@@ -308,8 +308,7 @@ class _PostCardState extends State<PostCard> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                 child: Text(
-                  // DateFormatter.timeAgo(post.createdAt).toUpperCase(),
-                  '2 HOURS AGO',
+                  formatRelativeTime(widget.post.createdAt).toUpperCase(),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                     letterSpacing: 0.3,

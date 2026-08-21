@@ -1,8 +1,17 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message_model.dart';
 
 final messageControllerProvider = Provider((ref) => MessageController());
+
+final conversationsStreamProvider = StreamProvider<List<ConversationModel>>((ref) {
+  return ref.watch(messageControllerProvider).streamConversations();
+});
+
+final messagesStreamProvider = StreamProvider.family<List<MessageModel>, String>((ref, conversationId) {
+  return ref.watch(messageControllerProvider).streamMessages(conversationId);
+});
 
 class MessageController {
   final _supabase = Supabase.instance.client;
@@ -21,25 +30,20 @@ class MessageController {
     return _supabase
         .from('conversations')
         .stream(primaryKey: ['id'])
-        // Note: .or() is not supported on .stream(). 
-        // We rely on Row Level Security (RLS) to filter conversations for the current user.
         .asyncMap((data) async {
           if (data.isEmpty) return [];
 
-          // Filter in Dart as a fallback if RLS is not fully restrictive
           final myConversations = data.where((json) => 
             json['participant1'] == userId || json['participant2'] == userId
           ).toList();
 
           if (myConversations.isEmpty) return [];
 
-          // Fetch all unique other user IDs
           final otherUserIds = myConversations.map((json) {
             final isUser1 = json['participant1'] == userId;
             return (isUser1 ? json['participant2'] : json['participant1']).toString();
           }).toSet().toList();
 
-          // Fetch all profiles in one go for efficiency
           final profilesResponse = await _supabase
               .from('profiles')
               .select()
@@ -65,7 +69,6 @@ class MessageController {
             ));
           }
           
-          // Sort by updated_at descending (latest first)
           conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
           return conversations;
         });
@@ -74,7 +77,6 @@ class MessageController {
   Future<String> getOrCreateConversation(String otherUserId) async {
     final myId = _supabase.auth.currentUser!.id;
     
-    // Check if conversation exists (myId as participant1)
     var existing = await _supabase
         .from('conversations')
         .select()
@@ -83,7 +85,6 @@ class MessageController {
         .maybeSingle();
     
     if (existing == null) {
-      // Check if conversation exists (myId as participant2)
       existing = await _supabase
           .from('conversations')
           .select()
@@ -96,7 +97,6 @@ class MessageController {
       return existing['id'].toString();
     }
     
-    // Create new conversation
     final response = await _supabase.from('conversations').insert({
       'participant1': myId,
       'participant2': otherUserId,
@@ -111,6 +111,8 @@ class MessageController {
     required String conversationId,
     required String receiverId,
     required String content,
+    MessageType messageType = MessageType.text,
+    String? mediaUrl,
   }) async {
     final senderId = _supabase.auth.currentUser!.id;
 
@@ -119,20 +121,77 @@ class MessageController {
       'sender_id': senderId,
       'receiver_id': receiverId,
       'content': content,
+      'message_type': messageType.name,
+      'media_url': mediaUrl,
     });
     
-    // Update conversation timestamp and last message
+    await _updateConversation(conversationId, content, messageType);
+  }
+
+  Future<void> sendMediaMessage({
+    required String conversationId,
+    required String receiverId,
+    required File file,
+    MessageType messageType = MessageType.image,
+  }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final fileExt = file.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final filePath = 'chat/$conversationId/$fileName';
+
+      // 1. Upload to Supabase 'messages' storage bucket
+      await _supabase.storage.from('messages').upload(
+        filePath,
+        file,
+        fileOptions: const FileOptions(upsert: true),
+      );
+
+      // 2. Get Public URL
+      final mediaUrl = _supabase.storage.from('messages').getPublicUrl(filePath);
+
+      final content = messageType == MessageType.image ? '📷 Photo' : (messageType == MessageType.audio ? '🎤 Voice message' : '📎 Media');
+
+      // 3. Insert record into messages table
+      await _supabase.from('messages').insert({
+        'conversation_id': conversationId,
+        'sender_id': user.id,
+        'receiver_id': receiverId,
+        'content': content,
+        'message_type': messageType.name,
+        'media_url': mediaUrl,
+      });
+
+      await _updateConversation(conversationId, content, messageType);
+    } catch (e) {
+      print('Error sending media message: $e');
+    }
+  }
+
+  Future<void> _updateConversation(String conversationId, String content, MessageType messageType) async {
     await _supabase.from('conversations').update({
       'updated_at': DateTime.now().toIso8601String(),
       'last_message': content,
     }).eq('id', conversationId);
   }
 
+  // Deprecated: use sendMediaMessage
+  Future<String?> uploadMedia(File file, String bucket) async {
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final path = 'chat/$fileName';
+      await _supabase.storage.from(bucket).upload(path, file);
+      return _supabase.storage.from(bucket).getPublicUrl(path);
+    } catch (e) {
+      print('Error uploading media: $e');
+      return null;
+    }
+  }
+
   Future<List<ConversationModel>> fetchConversations() async {
     final userId = _supabase.auth.currentUser!.id;
-    
-    // This is a complex query depending on schema. 
-    // Simplified version assuming a conversations view or similar:
     try {
       final response = await _supabase
           .from('conversations')
