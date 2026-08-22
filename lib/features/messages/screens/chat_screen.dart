@@ -15,6 +15,8 @@ import '../../../core/constants/app_colors.dart';
 import '../controllers/message_controller.dart';
 import '../models/message_model.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../calls/controllers/call_controller.dart';
+import '../../calls/screens/call_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -150,6 +152,60 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollToBottom();
   }
 
+  void _handleCall({required bool isVideo}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(isVideo ? Icons.videocam_rounded : Icons.phone_rounded, color: AppColors.rose),
+            const SizedBox(width: 10),
+            Text('Start ${isVideo ? "Video" : "Audio"} Call'),
+          ],
+        ),
+        content: Text('Would you like to start a high-definition ${isVideo ? "video" : "audio"} call with ${widget.otherUserName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.rose,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Call'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final channel = await ref.read(callControllerProvider).startCall(
+            receiverId: widget.otherUserId,
+            callType: isVideo ? 'video' : 'audio',
+          );
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              channelName: channel,
+              otherUserName: widget.otherUserName,
+              otherUserAvatar: widget.otherUserAvatar,
+              isVideoCall: isVideo,
+              isCaller: true,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -258,6 +314,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.phone_rounded, color: AppColors.rose, size: 22),
+            onPressed: () => _handleCall(isVideo: false),
+          ),
+          IconButton(
+            icon: const Icon(Icons.videocam_rounded, color: AppColors.rose, size: 24),
+            onPressed: () => _handleCall(isVideo: true),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [

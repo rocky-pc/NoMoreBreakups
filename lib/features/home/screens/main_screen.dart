@@ -1,22 +1,120 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../feed/screens/feed_screen.dart';
 import '../../healings/screens/healings_screen.dart';
 import '../../messages/screens/messages_screen.dart';
 import '../../search/screens/search_screen.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../calls/controllers/call_controller.dart';
+import '../../calls/screens/incoming_call_screen.dart';
+import '../../calls/screens/call_screen.dart';
+import '../../../core/services/call_kit_service.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen> {
   int _selectedIndex = 0;
+  StreamSubscription? _callSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenForCalls();
+  }
+
+  @override
+  void dispose() {
+    _callSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenForCalls() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    FlutterCallkitIncoming.onEvent.listen((event) {
+      switch (event?.event) {
+        case Event.actionCallAccept:
+          final extra = event!.body['extra'];
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CallScreen(
+                channelName: extra['channel_name'],
+                otherUserName: extra['caller_name'],
+                otherUserAvatar: extra['caller_avatar'],
+                isVideoCall: extra['is_video'],
+                isCaller: false,
+              ),
+            ),
+          );
+          break;
+        case Event.actionCallDecline:
+          final extra = event!.body['extra'];
+          ref.read(callControllerProvider).endCall(extra['channel_name']);
+          break;
+        default:
+          break;
+      }
+    });
+
+    _callSubscription = ref.read(callControllerProvider).streamIncomingCalls().listen((calls) async {
+      if (calls.isNotEmpty) {
+        final lastCall = calls.first;
+        final status = lastCall['status'];
+        final callerId = lastCall['caller_id'];
+        
+        if (status == 'ringing') {
+          try {
+            final profileData = await Supabase.instance.client
+                .from('profiles')
+                .select()
+                .eq('id', callerId)
+                .single();
+            
+            final callerName = profileData['display_name'] ?? profileData['username'] ?? 'Unknown User';
+            final callerAvatar = profileData['avatar_url'];
+
+            // Show System Call UI
+            await CallKitService.showIncomingCall(
+              callerName: callerName,
+              avatar: callerAvatar,
+              channelName: lastCall['channel_name'],
+              isVideo: lastCall['call_type'] == 'video',
+              callId: lastCall['id'],
+            );
+
+            if (mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => IncomingCallScreen(
+                    callData: lastCall,
+                    callerName: callerName,
+                    callerAvatar: callerAvatar,
+                  ),
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('Error fetching caller profile: $e');
+          }
+        }
+      }
+    });
+  }
 
   final List<Widget> _pages = const [
     FeedScreen(),
@@ -92,8 +190,8 @@ class _MainScreenState extends State<MainScreen> {
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
 
     final barColor = isDarkMode
-        ? AppColors.darkCharcoal.withOpacity(0.78)
-        : scaffoldBg.withOpacity(0.82);
+        ? AppColors.darkCharcoal.withValues(alpha: 0.78)
+        : scaffoldBg.withValues(alpha: 0.82);
 
     return ClipRect(
       child: BackdropFilter(
@@ -113,12 +211,12 @@ class _MainScreenState extends State<MainScreen> {
           child: SafeArea(
             top: false,
             child: SizedBox(
-              height: 64,
+              height: 52,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final double barWidth = constraints.maxWidth;
                   final double itemWidth = barWidth / _navItems.length;
-                  const double indicatorSize = 42;
+                  const double indicatorSize = 34;
 
                   return Stack(
                     alignment: Alignment.center,
@@ -139,9 +237,9 @@ class _MainScreenState extends State<MainScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.rose.withOpacity(0.42),
-                                blurRadius: 16,
+                                blurRadius: 12,
                                 spreadRadius: 1,
-                                offset: const Offset(0, 5),
+                                offset: const Offset(0, 3),
                               ),
                             ],
                           ),
@@ -156,7 +254,7 @@ class _MainScreenState extends State<MainScreen> {
 
                           return SizedBox(
                             width: itemWidth,
-                            height: 30,
+                            height: 32,
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () => _onTabTapped(index),

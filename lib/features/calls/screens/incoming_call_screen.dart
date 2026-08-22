@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../controllers/call_controller.dart';
 import 'call_screen.dart';
@@ -25,17 +28,42 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   final _audioPlayer = AudioPlayer();
   bool _isRinging = true;
+  StreamSubscription? _statusSubscription;
 
   @override
   void initState() {
     super.initState();
     _playRingtone();
+    _listenForStatus();
+  }
+
+  void _listenForStatus() {
+    _statusSubscription = Supabase.instance.client
+        .from('calls')
+        .stream(primaryKey: ['id'])
+        .eq('id', widget.callData['id'])
+        .listen((data) {
+      if (data.isNotEmpty) {
+        final status = data.first['status'];
+        if (status == 'ended' || status == 'declined' || status == 'accepted') {
+          _stopRingtone();
+          // If the call was accepted elsewhere (e.g. CallKit), close this screen
+          if (mounted && status != 'accepted') {
+             Navigator.pop(context);
+          } else if (mounted && status == 'accepted') {
+             // Let the MainScreen listener handle navigation to CallScreen
+             Navigator.pop(context);
+          }
+        }
+      }
+    });
   }
 
   Future<void> _playRingtone() async {
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.play(AssetSource('sounds/incoming_ringtone.mp3'));
+      // Fallback to outgoing if incoming is missing
+      await _audioPlayer.play(AssetSource('sounds/outgoing_ringtone.mp3'));
     } catch (e) {
       debugPrint('Error playing ringtone: $e');
     }
@@ -50,6 +78,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
   @override
   void dispose() {
+    _statusSubscription?.cancel();
     _stopRingtone();
     _audioPlayer.dispose();
     super.dispose();
@@ -57,6 +86,13 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
 
   void _acceptCall() async {
     _stopRingtone();
+    
+    // Ensure permissions are granted before proceeding
+    await [
+      Permission.microphone,
+      if (widget.callData['call_type'] == 'video') Permission.camera,
+    ].request();
+
     await CallController().acceptCall(widget.callData['id']);
     
     if (mounted) {
@@ -97,7 +133,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-              child: Container(color: Colors.black.withOpacity(0.6)),
+              child: Container(color: Colors.black.withValues(alpha: 0.6)),
             ),
           ),
 
@@ -111,7 +147,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                 // Caller Info
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: AppColors.rose.withOpacity(0.2),
+                  backgroundColor: AppColors.rose.withValues(alpha: 0.2),
                   backgroundImage: widget.callerAvatar != null
                       ? CachedNetworkImageProvider(widget.callerAvatar!)
                       : null,
@@ -191,7 +227,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.4),
+                  color: color.withValues(alpha: 0.4),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),

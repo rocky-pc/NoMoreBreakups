@@ -27,16 +27,16 @@ class CallKitService {
         'caller_name': callerName,
         'caller_avatar': avatar,
       },
-      android: const AndroidParams(
+      android: AndroidParams(
         isCustomNotification: true,
         isShowLogo: false,
         ringtonePath: 'system_ringtone_default',
         backgroundColor: '#E91E63', // Rose color
         backgroundUrl: 'assets/images/logo.jpeg',
         actionColor: '#4CAF50',
-        textColor: '#ffffff',
+        // textColor: '#FFFFFF',
       ),
-      ios: const IOSParams(
+      ios: IOSParams(
         iconName: 'AppIcon',
         handleType: 'generic',
         supportsVideo: true,
